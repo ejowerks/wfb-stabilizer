@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # Author: ejowerks
 # Version 0.00000000001 Proof of Concept Released 4/3/2023
 # Open Source -- Do what you wanna do
