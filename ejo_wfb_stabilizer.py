@@ -17,24 +17,34 @@ import sys
 downSample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
-zoomFactor = 1.1
+zoomFactor = 1
 
 # pV and mV can be increased for more smoothing #### start with pV = 0.01 and mV = 2 
 processVar=0.01 
 measVar=2
 
-# set to 1 to show the ROI rectangle 
-showrectROI = 0
-
 # set to 1 to display full screen -- doesn't actually go full screen if your monitor rez is higher than 720p. TODO: monitor resolution detection
 showFullScreen = 0
-
-# set to 1 to show unstabilized B&W ROI in a window
-showUnstabilized = 0
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
 # LEAVE AT 1 if streaming live video from WFB (unless you like a delay in your stream for some weird reason)
 delay_time = 1 
+
+
+######################## Region of Interest (ROI) ###############################
+# This is the portion of the frame actually being processed. Smaller ROI = faster processing = less latency
+#
+# roiDiv = ROI size divisor. Minimum functional divisor is about 3.0 at 720p input. 4.0 is best for solid stabilization.
+# Higher FPS and lower resolution can go higher in ROI (and probably should)
+# Set showrectROI and/or showUnstabilized vars to = 1 to see the area being processed. On slower PC's 3 might be required if 720p input
+roiDiv = 4
+
+# set to 1 to show the ROI rectangle 
+showrectROI = 0
+
+# set to 1 to show unstabilized B&W ROI in a window
+showUnstabilized = 0
+
 
 ######################## Video Source ###############################
 
@@ -43,10 +53,10 @@ delay_time = 1
 # Check the docs for your wifibroadcast variant and/or the Googles to figure out what to do. 
 
 # Below should work on most PC's with gstreamer  -- ###  #### #### Without hardware acceleration you may need to downsample your stream #### #### ###
-SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! decodebin ! videoconvert ! appsink sync=false'
+#SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! decodebin ! videoconvert ! appsink sync=false'
 
-# Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Probably won't work on your computer
-#SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" framerate=49/1 ! rtph264depay !  h264parse ! nvh264dec ! videoconvert ! appsink sync=false'
+# Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Requires a lot of fiddling around compiling opencv w/ cuda support
+SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay !  h264parse ! nvh264dec ! videoconvert ! appsink sync=false'
 
 ######################################################################
 
@@ -76,8 +86,8 @@ while True:
 	res_h_orig = frame.shape[0]
 	res_w = int(res_w_orig * downSample)
 	res_h = int(res_h_orig * downSample)
-	top_left= [int(res_h/4),int(res_w/4)]
-	bottom_right = [int(res_h - (res_h/4)),int(res_w - (res_w/4))]
+	top_left= [int(res_h/roiDiv),int(res_w/roiDiv)]
+	bottom_right = [int(res_h - (res_h/roiDiv)),int(res_w - (res_w/roiDiv))]
 	frameSize=(res_w,res_h)
 	Orig = frame
 	frame = cv2.resize(frame, frameSize) # downSample if applicable
@@ -97,13 +107,13 @@ while True:
 		#gfftmask = np.zeros_like(currGray)
 		#gfftmask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = 255
 		
-		prevPts = cv2.goodFeaturesToTrack(prevGray,maxCorners=200,qualityLevel=0.01,minDistance=30,blockSize=3)
+		prevPts = cv2.goodFeaturesToTrack(prevGray,maxCorners=400,qualityLevel=0.01,minDistance=30,blockSize=3)
 		currPts, status, err = cv2.calcOpticalFlowPyrLK(prevGray,currGray,prevPts,None,**lk_params)
 		assert prevPts.shape == currPts.shape
 		idx = np.where(status == 1)[0]
 		# Add orig video resolution pts to roi pts
-		prevPts = prevPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)]) 
-		currPts = currPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)])
+		prevPts = prevPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)]) 
+		currPts = currPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)])
 		m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
 		if m is None:
 			m = lastRigidTransform
