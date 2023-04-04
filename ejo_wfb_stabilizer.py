@@ -17,13 +17,13 @@ import sys
 downSample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
-zoomFactor = 1
+zoomFactor = 1.1
 
 # pV and mV can be increased for more smoothing #### start with pV = 0.01 and mV = 2 
 processVar=0.01 
 measVar=2
 
-# set to 1 to display full screen -- doesn't actually go full screen if your monitor rez is higher than 720p. TODO: monitor resolution detection
+# set to 1 to display full screen -- doesn't actually go full screen if your monitor rez is higher than stream rez which it probably is. TODO: monitor resolution detection
 showFullScreen = 0
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
@@ -45,14 +45,13 @@ showrectROI = 0
 # set to 1 to show unstabilized B&W ROI in a window
 showUnstabilized = 0
 
-
 ######################## Video Source ###############################
 
 # Your stream source. Requires gstreamer libraries 
 # Can be local or another source like a GS RPi
 # Check the docs for your wifibroadcast variant and/or the Googles to figure out what to do. 
 
-# Below should work on most PC's with gstreamer  -- ###  #### #### Without hardware acceleration you may need to reduce your stream to 360p #### #### ###
+# Below should work on most PC's with gstreamer  -- ###  #### #### Without hardware acceleration you may need to reduce your stream to 920x540 ish #### #### ###
 SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! decodebin ! videoconvert ! appsink sync=false'
 
 # Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Requires a lot of fiddling around compiling opencv w/ cuda support
@@ -90,7 +89,8 @@ while True:
 	bottom_right = [int(res_h - (res_h/roiDiv)),int(res_w - (res_w/roiDiv))]
 	frameSize=(res_w,res_h)
 	Orig = frame
-	frame = cv2.resize(frame, frameSize) # downSample if applicable
+	if downSample != 1:
+		frame = cv2.resize(frame, frameSize) # downSample if applicable
 	currFrame = frame
 	currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
 	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #select ROI
