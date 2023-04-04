@@ -13,7 +13,7 @@ import sys
 #################### USER VARS ######################################
 # Decreases stabilization latency at the expense of accuracy. Set to 1 if no downsamping is desired. 
 # Example: downsample = 0.5 is half resolution and runs faster but gets jittery
-downsample = 1.0
+downSample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
 zoomFactor = 1.1
@@ -69,8 +69,8 @@ while True:
 		exit() 
 	res_w_orig = frame.shape[1]
 	res_h_orig = frame.shape[0]
-	res_w = int(res_w_orig * downsample)
-	res_h = int(res_h_orig * downsample)
+	res_w = int(res_w_orig * downSample)
+	res_h = int(res_h_orig * downSample)
 	top_left= [int(res_h/4),int(res_w/4)]
 	bottom_right = [int(res_h - (res_h/4)),int(res_w - (res_w/4))]
 	res_disp_w=int(res_w/2)
