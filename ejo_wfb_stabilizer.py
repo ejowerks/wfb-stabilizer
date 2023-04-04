@@ -2,7 +2,7 @@
 # Author: ejowerks
 # Version 0.00000000001 Proof of Concept Released 4/3/2023
 # Open Source -- Do what you wanna do
-# Thanks to https://github.com/trongphuongpro/videostabilizer for help
+# Thanks to https://github.com/trongphuongpro/videostabilizer 
 
 import cv2
 import numpy as np
@@ -65,115 +65,99 @@ prevFrame = None
 video = cv2.VideoCapture(SRC)
 
 while True:
-		grab, frame = video.read()
-		if grab is not True:
-			exit() 
-		res_w_orig = frame.shape[1]
-		res_h_orig = frame.shape[0]
-		res_w = int(res_w_orig * downsample)
-		res_h = int(res_h_orig * downsample)
-		top_left= [int(res_h/4),int(res_w/4)]
-		bottom_right = [int(res_h - (res_h/4)),int(res_w - (res_w/4))]
-		res_disp_w=int(res_w/2)
-		res_disp_h=int(res_h/2)
-		frameSize=(res_w,res_h)
-		Orig = frame
-
-		frame = cv2.resize(frame, frameSize) # Downsample if applicable
-
-		currFrame = frame
-		currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-		currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #selecting ROI
-
-		if prevFrame is None:
-			prevOrig = frame
-			prevFrame = frame
-			prevGray = currGray
-
+	grab, frame = video.read()
+	if grab is not True:
+		exit() 
+	res_w_orig = frame.shape[1]
+	res_h_orig = frame.shape[0]
+	res_w = int(res_w_orig * downsample)
+	res_h = int(res_h_orig * downsample)
+	top_left= [int(res_h/4),int(res_w/4)]
+	bottom_right = [int(res_h - (res_h/4)),int(res_w - (res_w/4))]
+	res_disp_w=int(res_w/2)
+	res_disp_h=int(res_h/2)
+	frameSize=(res_w,res_h)
+	Orig = frame
+	frame = cv2.resize(frame, frameSize) # Downsample if applicable
+	currFrame = frame
+	currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #selecting ROI
+	if prevFrame is None:
+		prevOrig = frame
+		prevFrame = frame
+		prevGray = currGray
+	
+	if (grab == True) & (prevFrame is not None):
+		if showSampledArea == 1:
+			cv2.rectangle(prevOrig,(top_left[1],top_left[0]),(bottom_right[1],bottom_right[0]),color = (255,255,255),thickness = 1)
+		# Not in use, save for later
+		#gfftmask = np.zeros_like(currGray)
+		#gfftmask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = 255
 		
-		if (grab == True) & (prevFrame is not None):
-			if showSampledArea == 1:
-				cv2.rectangle(prevOrig,(top_left[1],top_left[0]),(bottom_right[1],bottom_right[0]),color = (255,255,255),thickness = 1)
-
-			# Not in use, save for later
-			#gfftmask = np.zeros_like(currGray)
-			#gfftmask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = 255
-			
-			prevPts = cv2.goodFeaturesToTrack(prevGray,maxCorners=200,qualityLevel=0.01,minDistance=30,blockSize=3)
-			currPts, status, err = cv2.calcOpticalFlowPyrLK(prevGray,currGray,prevPts,None,**lk_params)
-			assert prevPts.shape == currPts.shape
-			idx = np.where(status == 1)[0]
-			# Add orig video resolution pts to roi pts
-			prevPts = prevPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)]) 
-			currPts = currPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)])
-
-			m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
-
-			if m is None:
-				m = lastRigidTransform
-
-			# i like smoothies
-			dx = m[0, 2]
-			dy = m[1, 2]
-			da = np.arctan2(m[1, 0], m[0, 0])
-			x += dx
-			y += dy
-			a += da
-			Z = np.array([[x, y, a]], dtype="float")
-			if count == 0:
-				X_estimate = np.zeros((1,3), dtype="float")
-				P_estimate = np.ones((1,3), dtype="float")
-			else:
-				X_predict = X_estimate
-				P_predict = P_estimate + Q
-				K = P_predict / (P_predict + R)
-				X_estimate = X_predict + K * (Z - X_predict)
-				P_estimate = (np.ones((1,3), dtype="float") - K) * P_predict
-				K_collect.append(K)
-				P_collect.append(P_estimate)
-
-			diff_x = X_estimate[0,0] - x
-			diff_y = X_estimate[0,1] - y
-			diff_a = X_estimate[0,2] - a
-			dx += diff_x
-			dy += diff_y
-			da += diff_a
-
-			m = np.zeros((2,3), dtype="float")
-			m[0,0] = np.cos(da)
-			m[0,1] = -np.sin(da)
-			m[1,0] = np.sin(da)
-			m[1,1] = np.cos(da)
-			m[0,2] = dx
-			m[1,2] = dy
-
-
-			fS = cv2.warpAffine(prevOrig, m, (res_w_orig,res_h_orig)) # apply magic stabilizer sauce to frame
-			s = fS.shape
-			T = cv2.getRotationMatrix2D((s[1]/2, s[0]/2), 0, zoomFactor)
-			f_stabilized = cv2.warpAffine(fS, T, (s[1], s[0]))
-
-
-			window_name=f'Processing:{res_w}X{res_h}'
-			cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
-			if showFullScreen == 1:
-				cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
-			cv2.imshow(window_name, f_stabilized)
-			if showUnstabilized == 1:
-				cv2.imshow("Unstabilized",prevGray)
-
-			if cv2.waitKey(delay_time) & 0xFF == ord('q'):
-				break
-			
-			
-			prevOrig = Orig
-			prevGray = currGray
-			prevFrame = currFrame
-			lastRigidTransform = m
-			count += 1
-
+		prevPts = cv2.goodFeaturesToTrack(prevGray,maxCorners=200,qualityLevel=0.01,minDistance=30,blockSize=3)
+		currPts, status, err = cv2.calcOpticalFlowPyrLK(prevGray,currGray,prevPts,None,**lk_params)
+		assert prevPts.shape == currPts.shape
+		idx = np.where(status == 1)[0]
+		# Add orig video resolution pts to roi pts
+		prevPts = prevPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)]) 
+		currPts = currPts[idx] + np.array([int(res_w_orig/4),int(res_h_orig/4)])
+		m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
+		if m is None:
+			m = lastRigidTransform
+		# i like smoothies
+		dx = m[0, 2]
+		dy = m[1, 2]
+		da = np.arctan2(m[1, 0], m[0, 0])
+		x += dx
+		y += dy
+		a += da
+		Z = np.array([[x, y, a]], dtype="float")
+		if count == 0:
+			X_estimate = np.zeros((1,3), dtype="float")
+			P_estimate = np.ones((1,3), dtype="float")
 		else:
-			exit()
+			X_predict = X_estimate
+			P_predict = P_estimate + Q
+			K = P_predict / (P_predict + R)
+			X_estimate = X_predict + K * (Z - X_predict)
+			P_estimate = (np.ones((1,3), dtype="float") - K) * P_predict
+			K_collect.append(K)
+			P_collect.append(P_estimate)
+		diff_x = X_estimate[0,0] - x
+		diff_y = X_estimate[0,1] - y
+		diff_a = X_estimate[0,2] - a
+		dx += diff_x
+		dy += diff_y
+		da += diff_a
+		m = np.zeros((2,3), dtype="float")
+		m[0,0] = np.cos(da)
+		m[0,1] = -np.sin(da)
+		m[1,0] = np.sin(da)
+		m[1,1] = np.cos(da)
+		m[0,2] = dx
+		m[1,2] = dy
+		fS = cv2.warpAffine(prevOrig, m, (res_w_orig,res_h_orig)) # apply magic stabilizer sauce to frame
+		s = fS.shape
+		T = cv2.getRotationMatrix2D((s[1]/2, s[0]/2), 0, zoomFactor)
+		f_stabilized = cv2.warpAffine(fS, T, (s[1], s[0]))
+		window_name=f'Processing:{res_w}x{res_h}'
+		cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
+		if showFullScreen == 1:
+			cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+		cv2.imshow(window_name, f_stabilized)
+		if showUnstabilized == 1:
+			cv2.imshow("Unstabilized",prevGray)
+		if cv2.waitKey(delay_time) & 0xFF == ord('q'):
+			break
+		
+		
+		prevOrig = Orig
+		prevGray = currGray
+		prevFrame = currFrame
+		lastRigidTransform = m
+		count += 1
+	else:
+		exit()
  
 video.release()
  
