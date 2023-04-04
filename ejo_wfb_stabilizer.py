@@ -86,6 +86,7 @@ while True:
 	currFrame = frame
 	currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
 	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #select ROI
+	
 	if prevFrame is None:
 		prevOrig = frame
 		prevFrame = frame
