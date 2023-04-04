@@ -23,13 +23,13 @@ zoomFactor = 1.1
 processVar=0.01 
 measVar=2
 
-# set to 1 to show the sampled area rectangle 
-showSampledArea = 0
+# set to 1 to show the ROI rectangle 
+showrectROI = 0
 
-# set to 1 to display full screen
+# set to 1 to display full screen -- doesn't actually go full screen if your monitor rez is higher than 720p. TODO: monitor resolution detection
 showFullScreen = 0
 
-# set to 1 to show unstabilized B&W sampled area in a window
+# set to 1 to show unstabilized B&W ROI in a window
 showUnstabilized = 0
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
@@ -78,22 +78,20 @@ while True:
 	res_h = int(res_h_orig * downSample)
 	top_left= [int(res_h/4),int(res_w/4)]
 	bottom_right = [int(res_h - (res_h/4)),int(res_w - (res_w/4))]
-	res_disp_w=int(res_w/2)
-	res_disp_h=int(res_h/2)
 	frameSize=(res_w,res_h)
 	Orig = frame
 	frame = cv2.resize(frame, frameSize) # downSample if applicable
 	currFrame = frame
 	currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
 	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #select ROI
-	
+
 	if prevFrame is None:
 		prevOrig = frame
 		prevFrame = frame
 		prevGray = currGray
 	
 	if (grab == True) & (prevFrame is not None):
-		if showSampledArea == 1:
+		if showrectROI == 1:
 			cv2.rectangle(prevOrig,(top_left[1],top_left[0]),(bottom_right[1],bottom_right[0]),color = (255,255,255),thickness = 1)
 		# Not in use, save for later
 		#gfftmask = np.zeros_like(currGray)
@@ -147,13 +145,13 @@ while True:
 		s = fS.shape
 		T = cv2.getRotationMatrix2D((s[1]/2, s[0]/2), 0, zoomFactor)
 		f_stabilized = cv2.warpAffine(fS, T, (s[1], s[0]))
-		window_name=f'Processing:{res_w}x{res_h}'
+		window_name=f'Stabilized:{res_w}x{res_h}'
 		cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
 		if showFullScreen == 1:
 			cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 		cv2.imshow(window_name, f_stabilized)
 		if showUnstabilized == 1:
-			cv2.imshow("Unstabilized",prevGray)
+			cv2.imshow("Unstabilized ROI",prevGray)
 		if cv2.waitKey(delay_time) & 0xFF == ord('q'):
 			break
 		
