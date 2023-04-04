@@ -20,3 +20,16 @@ Included in this repo is a test shaky video. To test run:
 python ejo_wfb_stabilizer.py UnstabilizedTest10sec.mp4 
 
 ...or edit the file and set the SRC variable to your own streaming source.
+
+
+<hr>
+
+Notes: 
+
+Higher FPS = lower latency, better cleaner stabilization.
+
+This will stabilize 720p @ 49fps (v1 camera max 720p fps) pretty well, however for ultra fast movements it is better to run 60fps+ which requires a genuine V2 cam. I often run the V1 camera at 90fps at 640x320 which stabilizes beautifully at the trade-off for lower resolution. Seems good for racing.
+	
+My PC has a nvidia gpu and opencv compiled with cuda support and can handle the stabilization demands at 720p. A lower-end PC may require running a lower resolution stream, lower fps, or adjusting to a smaller ROI in the script (will require some simple hacking).
+	
+
