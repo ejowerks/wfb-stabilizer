@@ -1,4 +1,4 @@
-# wfb-stabilizer by EjoWerks
+# ejo_wfb_stabilizer.py
 
 Simple proof-of-concept starter script to stabilize video stream with low latency from wifibroadcast FPV (or any streaming source). 
 
