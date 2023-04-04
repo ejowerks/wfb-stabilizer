@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Author: ejowerks
 # Version 0.00000000001 Proof of Concept Released 4/3/2023
 # Open Source -- Do what you wanna do
@@ -12,7 +13,7 @@ import sys
 
 #################### USER VARS ######################################
 # Decreases stabilization latency at the expense of accuracy. Set to 1 if no downsamping is desired. 
-# Example: downsample = 0.5 is half resolution and runs faster but gets jittery
+# Example: downSample = 0.5 is half resolution and runs faster but gets jittery
 downSample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
@@ -33,7 +34,7 @@ showUnstabilized = 0
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
 # LEAVE AT 1 if streaming live video from WFB (unless you like a delay in your stream for some weird reason)
-delay_time = 1
+delay_time = 1 
 
 ######################## Video Source ###############################
 
@@ -41,7 +42,11 @@ delay_time = 1
 # Can be local or another source like a GS RPi
 # Check the docs for your wifibroadcast variant and/or the Googles to figure out what to do. 
 
+# Below should work on most PC's with gstreamer installed
 #SRC = 'udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! avdec_h264 ! clockoverlay valignment=bottom ! autovideosink fps-update-interval=1000 sync=false'
+
+# Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Probably won't work on your computer
+#SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" framerate=49/1 ! rtph264depay !  h264parse ! nvh264dec ! videoconvert ! appsink sync=false'
 
 ######################################################################
 
@@ -77,10 +82,10 @@ while True:
 	res_disp_h=int(res_h/2)
 	frameSize=(res_w,res_h)
 	Orig = frame
-	frame = cv2.resize(frame, frameSize) # Downsample if applicable
+	frame = cv2.resize(frame, frameSize) # downSample if applicable
 	currFrame = frame
 	currGray = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #selecting ROI
+	currGray = currGray[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]  ] #select ROI
 	if prevFrame is None:
 		prevOrig = frame
 		prevFrame = frame
@@ -103,7 +108,8 @@ while True:
 		m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
 		if m is None:
 			m = lastRigidTransform
-		# i like smoothies
+			
+		# Smoothing
 		dx = m[0, 2]
 		dy = m[1, 2]
 		da = np.arctan2(m[1, 0], m[0, 0])
@@ -135,6 +141,7 @@ while True:
 		m[1,1] = np.cos(da)
 		m[0,2] = dx
 		m[1,2] = dy
+
 		fS = cv2.warpAffine(prevOrig, m, (res_w_orig,res_h_orig)) # apply magic stabilizer sauce to frame
 		s = fS.shape
 		T = cv2.getRotationMatrix2D((s[1]/2, s[0]/2), 0, zoomFactor)
