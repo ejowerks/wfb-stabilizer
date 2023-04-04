@@ -42,8 +42,8 @@ delay_time = 1
 # Can be local or another source like a GS RPi
 # Check the docs for your wifibroadcast variant and/or the Googles to figure out what to do. 
 
-# Below should work on most PC's with gstreamer installed
-#SRC = 'udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! avdec_h264 ! clockoverlay valignment=bottom ! autovideosink fps-update-interval=1000 sync=false'
+# Below should work on most PC's with gstreamer  -- ###  #### #### Without hardware acceleration you may need to downsample your stream #### #### ###
+SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! decodebin ! videoconvert ! appsink sync=false'
 
 # Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Probably won't work on your computer
 #SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" framerate=49/1 ! rtph264depay !  h264parse ! nvh264dec ! videoconvert ! appsink sync=false'
