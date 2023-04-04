@@ -6,12 +6,15 @@
 
 import cv2
 import numpy as np
-import time
+import sys
+
+# Usage: python ejo_wfb_stabilizer.py [optional video file]
+# press "Q" to quit
 
 #################### USER VARS ######################################
 # Decreases stabilization latency at the expense of accuracy. Set to 1 if no downsamping is desired. 
 # Example: downsample = 0.5 is half resolution and runs faster but gets jittery
-downsample = 1.0 
+downsample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
 zoomFactor = 1.1
@@ -31,25 +34,17 @@ showUnstabilized = 0
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
 # LEAVE AT 1 if streaming live video from WFB (unless you like a delay in your stream for some weird reason)
-delay_time = 1 
+delay_time = 1
 
 ######################## Video Source ###############################
-
-# For testing this script there is an unstabilized test file. Comment out if streaming from other sources below
-SRC = 'UnstabilizedTest10sec.mp4'
 
 # Your stream source. Requires gstreamer libraries 
 # Can be local or another source like a GS RPi
 # Check the docs for your wifibroadcast variant and/or the Googles to figure out what to do. 
 
-# Below should work on most PC's with gstreamer installed
 #SRC = 'udpsrc port=5600 caps='application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264' ! rtph264depay ! avdec_h264 ! clockoverlay valignment=bottom ! autovideosink fps-update-interval=1000 sync=false'
 
-# Below is for author's Ubuntu PC with nvidia/cuda stuff running WFB-NG locally (no groundstation RPi). Probably won't work on your computer
-#SRC = 'udpsrc port=5600 caps = "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" framerate=49/1 ! rtph264depay !  h264parse ! nvh264dec ! videoconvert ! appsink sync=false'
-
 ######################################################################
-
 
 
 lk_params = dict( winSize  = (15,15),maxLevel = 3,criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
@@ -62,6 +57,11 @@ R = np.array([[measVar]*3])
 K_collect = []
 P_collect = []
 prevFrame = None
+
+# open local video file, warning no filetype validation 
+if len(sys.argv) == 2:
+	SRC=sys.argv[1]
+
 video = cv2.VideoCapture(SRC)
 
 while True:
