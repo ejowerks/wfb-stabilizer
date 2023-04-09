@@ -17,14 +17,14 @@ import sys
 downSample = 1.0
 
 #Zoom in so you don't see the frame bouncing around. zoomFactor = 1 for no zoom
-zoomFactor = 1.1
+zoomFactor = 0.9
 
 # pV and mV can be increased for more smoothing #### start with pV = 0.01 and mV = 2 
-processVar=0.01 
+processVar=0.03
 measVar=2
 
 # set to 1 to display full screen -- doesn't actually go full screen if your monitor rez is higher than stream rez which it probably is. TODO: monitor resolution detection
-showFullScreen = 0
+showFullScreen = 1
 
 # If test video plays too fast then increase this until it looks close enough. Varies with hardware. 
 # LEAVE AT 1 if streaming live video from WFB (unless you like a delay in your stream for some weird reason)
@@ -37,13 +37,20 @@ delay_time = 1
 # roiDiv = ROI size divisor. Minimum functional divisor is about 3.0 at 720p input. 4.0 is best for solid stabilization.
 # Higher FPS and lower resolution can go higher in ROI (and probably should)
 # Set showrectROI and/or showUnstabilized vars to = 1 to see the area being processed. On slower PC's 3 might be required if 720p input
-roiDiv = 4
+roiDiv = 3.5
 
 # set to 1 to show the ROI rectangle 
 showrectROI = 0
 
+#showTrackingPoints # show tracking points found in frame. Useful to turn this on for troubleshooting or just for funzies. 
+showTrackingPoints = 0
+
 # set to 1 to show unstabilized B&W ROI in a window
 showUnstabilized = 0
+
+# maskFrame # Wide angle camera with stabilization warps things at extreme edges of frame). This helps mask them without zoom. Feels more like a windshield
+# Set to 0 to disable or find the variable down in the code to adjust size of mask
+maskFrame = 0
 
 ######################## Video Source ###############################
 
@@ -102,26 +109,35 @@ while True:
 	
 	if (grab == True) & (prevFrame is not None):
 		if showrectROI == 1:
-			cv2.rectangle(prevOrig,(top_left[1],top_left[0]),(bottom_right[1],bottom_right[0]),color = (255,255,255),thickness = 1)
+			cv2.rectangle(prevOrig,(top_left[1],top_left[0]),(bottom_right[1],bottom_right[0]),color = (211,211,211),thickness = 1)
 		# Not in use, save for later
 		#gfftmask = np.zeros_like(currGray)
 		#gfftmask[top_left[0]:bottom_right[0], top_left[1]:bottom_right[1]] = 255
 		
 		prevPts = cv2.goodFeaturesToTrack(prevGray,maxCorners=400,qualityLevel=0.01,minDistance=30,blockSize=3)
-		currPts, status, err = cv2.calcOpticalFlowPyrLK(prevGray,currGray,prevPts,None,**lk_params)
-		assert prevPts.shape == currPts.shape
-		idx = np.where(status == 1)[0]
-		# Add orig video resolution pts to roi pts
-		prevPts = prevPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)]) 
-		currPts = currPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)])
-		m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
-		if m is None:
-			m = lastRigidTransform
-			
-		# Smoothing
-		dx = m[0, 2]
-		dy = m[1, 2]
-		da = np.arctan2(m[1, 0], m[0, 0])
+		if prevPts is not None:
+			currPts, status, err = cv2.calcOpticalFlowPyrLK(prevGray,currGray,prevPts,None,**lk_params)
+			assert prevPts.shape == currPts.shape
+			idx = np.where(status == 1)[0]
+			# Add orig video resolution pts to roi pts
+			prevPts = prevPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)]) 
+			currPts = currPts[idx] + np.array([int(res_w_orig/roiDiv),int(res_h_orig/roiDiv)])
+			if showTrackingPoints == 1:
+				for pT in prevPts:
+					cv2.circle(prevOrig, (int(pT[0][0]),int(pT[0][1])) ,5,(211,211,211))
+			if prevPts.size & currPts.size:
+				m, inliers = cv2.estimateAffinePartial2D(prevPts, currPts)
+			if m is None:
+				m = lastRigidTransform
+			# Smoothing
+			dx = m[0, 2]
+			dy = m[1, 2]
+			da = np.arctan2(m[1, 0], m[0, 0])
+		else:
+			dx = 0
+			dy = 0
+			da = 0
+
 		x += dx
 		y += dy
 		a += da
@@ -157,9 +173,16 @@ while True:
 		f_stabilized = cv2.warpAffine(fS, T, (s[1], s[0]))
 		window_name=f'Stabilized:{res_w}x{res_h}'
 		cv2.namedWindow(window_name,cv2.WINDOW_NORMAL)
+		
+		if maskFrame == 1:
+			mask = np.zeros(f_stabilized.shape[:2], dtype="uint8")
+			cv2.rectangle(mask, (100, 200), (1180, 620), 255, -1)
+			f_stabilized = cv2.bitwise_and(f_stabilized, f_stabilized, mask=mask)
 		if showFullScreen == 1:
 			cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+		
 		cv2.imshow(window_name, f_stabilized)
+		
 		if showUnstabilized == 1:
 			cv2.imshow("Unstabilized ROI",prevGray)
 		if cv2.waitKey(delay_time) & 0xFF == ord('q'):
