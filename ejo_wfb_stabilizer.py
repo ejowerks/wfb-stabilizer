@@ -48,8 +48,8 @@ showTrackingPoints = 0
 # set to 1 to show unstabilized B&W ROI in a window
 showUnstabilized = 0
 
-# maskFrame # Wide angle camera with stabilization warps things at extreme edges of frame). This helps mask them without zoom. Feels more like a windshield
-# Set to 0 to disable or find the variable down in the code to adjust size of mask
+# maskFrame # Wide angle camera with stabilization warps things at extreme edges of frame. This helps mask them without zoom. 
+# Feels more like a windshield. Set to 0 to disable or find the variable down in the code to adjust size of mask
 maskFrame = 0
 
 ######################## Video Source ###############################
